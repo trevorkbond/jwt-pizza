@@ -25,4 +25,7 @@ export const mockedUsers = {
     },
     profileInitials: "AG",
   },
+  fakeUser: {
+    loginReq: { email: "fake@fake.com", password: "fake" },
+  },
 };
