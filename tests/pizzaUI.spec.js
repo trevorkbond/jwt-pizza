@@ -43,6 +43,33 @@ const mockFranchiseEndpoint = async (page) => {
   });
 };
 
+const mockGetFranchiseAdminEndpoint = async (page) => {
+  await page.route("*/**/api/franchise", async (route) => {
+    const franchiseRes = [
+      {
+        id: 1,
+        name: "THE Franchise",
+        admins: [
+          {
+            id: 3,
+            name: "admin guy",
+            email: "a@admin.com",
+          },
+        ],
+        stores: [
+          {
+            id: 2,
+            name: "THE Store",
+            totalRevenue: 500,
+          },
+        ],
+      },
+    ];
+    expect(route.request().method()).toBe("GET");
+    await route.fulfill({ json: franchiseRes });
+  });
+};
+
 const mockOrderEndpoint = async (page) => {
   await page.route("*/**/api/order", async (route) => {
     const orderReq = {
@@ -89,15 +116,37 @@ const mockAuthEndpoint = async (page) => {
   });
 };
 
+const mockAuthAdminEndpoint = async (page) => {
+  await page.route("*/**/api/auth", async (route) => {
+    const loginReq = { email: "a@jwt.com", password: "admin" };
+    const loginRes = {
+      user: {
+        id: 1,
+        name: "常用名字",
+        email: "a@jwt.com",
+        roles: [
+          {
+            role: "admin",
+          },
+        ],
+      },
+      token: "tokengang",
+    };
+    expect(route.request().method()).toBe("PUT");
+    expect(route.request().postDataJSON()).toMatchObject(loginReq);
+    await route.fulfill({ json: loginRes });
+  });
+};
+
 test.beforeEach(async ({ page }) => {
-  mockMenuEndpoint(page);
-  mockAuthEndpoint(page);
-  mockFranchiseEndpoint(page);
-  mockOrderEndpoint(page);
   await page.goto("/");
 });
 
 test("purchase with login", async ({ page }) => {
+  mockMenuEndpoint(page);
+  mockAuthEndpoint(page);
+  mockFranchiseEndpoint(page);
+  mockOrderEndpoint(page);
   // Go to order page
   await page.getByRole("button", { name: "Order now" }).click();
 
@@ -127,4 +176,28 @@ test("purchase with login", async ({ page }) => {
 
   // Check balance
   await expect(page.getByText("0.008")).toBeVisible();
+});
+
+test("go to about and history", async ({ page }) => {
+  await page.getByRole("link", { name: "About" }).click();
+  await expect(page.getByRole("main")).toContainText("The secret sauce");
+  await page.getByRole("link", { name: "History" }).click();
+  await expect(page.getByRole("heading")).toContainText("Mama Rucci, my my");
+});
+
+test("admin activity", async ({ page }) => {
+  await mockAuthAdminEndpoint(page);
+  await mockGetFranchiseAdminEndpoint(page);
+  await page.getByRole("link", { name: "Login" }).click();
+  await page.getByPlaceholder("Email address").fill("a@jwt.com");
+  await page.getByPlaceholder("Email address").press("Tab");
+  await page.getByPlaceholder("Password").fill("admin");
+  await page.getByPlaceholder("Password").press("Enter");
+  await page.getByRole("link", { name: "Admin" }).click();
+  await expect(page.getByRole("main")).toContainText("Add Franchise");
+  await expect(
+    page.getByRole("columnheader", { name: "Franchise", exact: true })
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Add Franchise" }).click();
+  await expect(page.getByRole("heading")).toContainText("Create franchise");
 });
