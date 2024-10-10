@@ -1,9 +1,7 @@
 import { test, expect } from "playwright-test-coverage";
 import { mockedUsers } from "./mockedUsers";
 
-// TODO: create standard set of mocked requests
-
-export async function mockAuthEndpoint(page, user) {
+async function mockAuthEndpoint(page, user) {
   await page.route("*/**/api/auth", async (route) => {
     const loginReq = user.loginReq;
     const loginRes = user.loginRes;
@@ -22,13 +20,22 @@ export async function mockAuthEndpoint(page, user) {
   });
 }
 
-async function testLogin(page, user) {
+export async function doLogin(page, user) {
   await mockAuthEndpoint(page, user);
   await page.getByRole("link", { name: "Login" }).click();
   await page.getByPlaceholder("Email address").fill(user.loginReq.email);
   await page.getByPlaceholder("Email address").press("Tab");
   await page.getByPlaceholder("Password").fill(user.loginReq.password);
   await page.getByPlaceholder("Password").press("Enter");
+  await page.evaluate((userData) => {
+    console.log(userData);
+    localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("token", userData);
+  });
+}
+
+async function testLogin(page, user) {
+  await doLogin(page, user);
   await expect(
     page.getByRole("link", { name: user.profileInitials, exact: true })
   ).toBeVisible();
