@@ -95,6 +95,33 @@ const mockGetFranchiseAdminEndpoint = async (page) => {
   });
 };
 
+const mockGetSingleFranchiseAdminEndpoint = async (page) => {
+  await page.route("*/**/api/franchise/1", async (route) => {
+    const franchiseRes = [
+      {
+        id: 1,
+        name: "new franchise!",
+        admins: [
+          {
+            id: 1,
+            name: "常用名字",
+            email: "a@jwt.com",
+          },
+        ],
+        stores: [
+          {
+            id: 1,
+            name: "Taco Bell",
+            totalRevenue: 0,
+          },
+        ],
+      },
+    ];
+    expect(route.request().method()).toBe("GET");
+    await route.fulfill({ json: franchiseRes });
+  });
+};
+
 const mockOrderEndpoint = async (page) => {
   await page.route("*/**/api/order", async (route) => {
     const orderReq = {
@@ -135,6 +162,10 @@ const mockAuthEndpoint = async (page) => {
       },
       token: "abcdef",
     };
+    await page.evaluate((userData) => {
+      localStorage.setItem("user", JSON.stringify(userData));
+      localStorage.setItem("token", userData.token);
+    }, loginRes.user);
     expect(route.request().method()).toBe("PUT");
     expect(route.request().postDataJSON()).toMatchObject(loginReq);
     await route.fulfill({ json: loginRes });
@@ -162,6 +193,14 @@ const mockAuthAdminEndpoint = async (page) => {
     await route.fulfill({ json: loginRes });
   });
 };
+
+async function loginAdmin(page) {
+  await page.getByRole("link", { name: "Login" }).click();
+  await page.getByPlaceholder("Email address").fill("a@jwt.com");
+  await page.getByPlaceholder("Email address").press("Tab");
+  await page.getByPlaceholder("Password").fill("admin");
+  await page.getByPlaceholder("Password").press("Enter");
+}
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
@@ -213,11 +252,7 @@ test("go to about and history", async ({ page }) => {
 test("admin create a franchise", async ({ page }) => {
   await mockAuthAdminEndpoint(page);
   await mockGetFranchiseAdminEndpoint(page);
-  await page.getByRole("link", { name: "Login" }).click();
-  await page.getByPlaceholder("Email address").fill("a@jwt.com");
-  await page.getByPlaceholder("Email address").press("Tab");
-  await page.getByPlaceholder("Password").fill("admin");
-  await page.getByPlaceholder("Password").press("Enter");
+  await loginAdmin(page);
   await page.getByRole("link", { name: "Admin" }).click();
   await expect(page.getByRole("main")).toContainText("Add Franchise");
   await expect(
@@ -244,27 +279,20 @@ test("admin create a franchise", async ({ page }) => {
   await expect(page.getByRole("heading")).toContainText("Mama Ricci's kitchen");
 });
 
-// await page.goto("http://localhost:5173/");
-// await page.getByRole("link", { name: "Login" }).click();
-// await page.getByPlaceholder("Email address").fill("a@jwt.com");
-// await page.getByPlaceholder("Email address").press("Tab");
-// await page.getByPlaceholder("Password").fill("admin");
-// await page.getByPlaceholder("Password").press("Enter");
-// await page.getByRole("link", { name: "Admin" }).click();
-// await page
-//   .getByRole("link", { name: "Admin", exact: true })
-//   .press("ControlOrMeta+Shift+c");
-// await page.getByRole("button", { name: "Add Franchise" }).click();
-// await page.getByPlaceholder("franchise name").click();
-// await page.getByPlaceholder("franchise name").fill("new franchise!");
-// await page.getByPlaceholder("franchisee admin email").click();
-// await page.getByPlaceholder("franchisee admin email").fill("a@jwt.com");
-// await page.getByRole("button", { name: "Create" }).click();
-// await page.getByRole("button", { name: "Add Franchise" }).click();
-// await expect(page.getByRole("heading")).toContainText("Create franchise");
-// await page.getByPlaceholder("franchise name").click();
-// await page.getByPlaceholder("franchise name").fill("another one");
-// await page.getByPlaceholder("franchise name").press("Tab");
-// await page.getByPlaceholder("franchisee admin email").fill("a@jwt.com");
-// await page.getByRole("button", { name: "Create" }).click();
-// await expect(page.getByRole("heading")).toContainText("Mama Ricci's kitchen");
+test.describe("this is so strange", () => {
+  test.describe.configure({ mode: "serial" });
+
+  test("add a store to a franchise", async ({ page }) => {
+    await mockAuthAdminEndpoint(page);
+    await mockGetSingleFranchiseAdminEndpoint(page);
+    await loginAdmin(page);
+    await page.getByRole("link", { name: "Franchise" }).click();
+    await expect(page.getByRole("contentinfo")).toContainText("Franchise");
+    await expect(page.getByRole("heading")).toContainText("new franchise!");
+    await page.getByRole("button", { name: "Create store" }).click();
+    await page.getByPlaceholder("store name").click();
+    await page.getByPlaceholder("store name").fill("Taco Bell");
+    await expect(page.getByRole("heading")).toContainText("Create store");
+    await page.getByRole("button", { name: "Create" }).click();
+  });
+});
