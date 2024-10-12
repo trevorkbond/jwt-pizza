@@ -23,6 +23,33 @@ const mockMenuEndpoint = async (page) => {
   });
 };
 
+const mockOrderHistoryEndpoint = async (page) => {
+  await page.route("*/**/api/order", async (route) => {
+    const orderRes = {
+      dinerId: 4,
+      orders: [
+        {
+          id: 1,
+          franchiseId: 1,
+          storeId: 1,
+          date: "2024-06-05T05:14:40.000Z",
+          items: [
+            {
+              id: 1,
+              menuId: 1,
+              description: "Veggie",
+              price: 0.05,
+            },
+          ],
+        },
+      ],
+      page: 1,
+    };
+    expect(route.request().method()).toBe("GET");
+    await route.fulfill({ json: orderRes });
+  });
+};
+
 const mockGetFranchiseEndpoint = async (page) => {
   await page.route("*/**/api/franchise", async (route) => {
     const franchiseRes = [
@@ -246,6 +273,20 @@ const mockAuthAdminEndpoint = async (page) => {
   });
 };
 
+const mockLogoutEndpoint = async (page) => {
+  await page.route("*/**/api/auth", async (route) => {
+    const logoutRes = {
+      message: "logout successful",
+    };
+    expect(route.request().method()).toBe("DELETE");
+    await page.evaluate(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+    });
+    await route.fulfill({ json: logoutRes });
+  });
+};
+
 async function loginAdmin(page) {
   await page.getByRole("link", { name: "Login" }).click();
   await page.getByPlaceholder("Email address").fill("a@jwt.com");
@@ -381,4 +422,36 @@ test("close store", async ({ page }) => {
       "span.bg-clip-text.bg-gradient-to-tr.from-orange-600.to-orange-400.text-transparent"
     )
   ).toContainText("new franchise!");
+});
+
+test("logout", async ({ page }) => {
+  await mockAuthAdminEndpoint(page);
+  await loginAdmin(page);
+  // Wait for the POST request to be completed before switching the mock back
+  const loginResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().includes("/auth") && response.request().method() === "PUT"
+  );
+  await loginResponsePromise;
+  await mockLogoutEndpoint(page);
+  await expect(page.getByRole("heading")).toContainText("The web's best pizza");
+  await page.getByRole("link", { name: "Logout" }).click();
+  await expect(page.getByText("Login")).toBeVisible();
+});
+
+test("order history", async ({ page }) => {
+  await mockAuthAdminEndpoint(page);
+  await loginAdmin(page);
+  await mockOrderHistoryEndpoint(page);
+  await page.getByRole("link", { name: "常" }).click();
+  await expect(page.getByRole("heading")).toContainText("Your pizza kitchen");
+});
+
+test("docs", async ({ page }) => {
+  await page.goto("/docs");
+  await expect(
+    page.locator(
+      "span.bg-clip-text.bg-gradient-to-tr.from-orange-600.to-orange-400.text-transparent"
+    )
+  ).toContainText("JWT Pizza API");
 });
