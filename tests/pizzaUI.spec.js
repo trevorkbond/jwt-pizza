@@ -68,6 +68,22 @@ const mockPostFranchiseEndpoint = async (page) => {
   });
 };
 
+const mockPostStoreEndpoint = async (page) => {
+  await page.route("*/**/api/franchise/1/store", async (route) => {
+    const storeReq = {
+      name: "Taco Bell",
+    };
+    const storeRes = {
+      id: 1,
+      name: "Taco Bell",
+      franchiseId: 1,
+    };
+    expect(route.request().method()).toBe("POST");
+    expect(route.request().postDataJSON()).toMatchObject(storeReq);
+    await route.fulfill({ json: storeRes });
+  });
+};
+
 const mockGetFranchiseAdminEndpoint = async (page) => {
   await page.route("*/**/api/franchise", async (route) => {
     const franchiseRes = [
@@ -118,6 +134,16 @@ const mockGetSingleFranchiseAdminEndpoint = async (page) => {
       },
     ];
     expect(route.request().method()).toBe("GET");
+    await route.fulfill({ json: franchiseRes });
+  });
+};
+
+const mockDeleteStore = async (page) => {
+  await page.route("*/**/api/franchise/1/store/1", async (route) => {
+    const franchiseRes = {
+      message: "store deleted",
+    };
+    expect(route.request().method()).toBe("DELETE");
     await route.fulfill({ json: franchiseRes });
   });
 };
@@ -308,6 +334,7 @@ test("admin create a franchise", async ({ page }) => {
 test("add a store to a franchise", async ({ page }) => {
   await mockAuthAdminEndpoint(page);
   await mockGetSingleFranchiseAdminEndpoint(page);
+  await mockPostStoreEndpoint(page);
   await loginAdmin(page);
   await page.locator("footer").getByRole("link", { name: "Franchise" }).click();
   await expect(page.getByRole("contentinfo")).toContainText("Franchise");
@@ -317,6 +344,11 @@ test("add a store to a franchise", async ({ page }) => {
   await page.getByPlaceholder("store name").fill("Taco Bell");
   await expect(page.getByRole("heading")).toContainText("Create store");
   await page.getByRole("button", { name: "Create" }).click();
+  await expect(
+    page.locator(
+      "span.bg-clip-text.bg-gradient-to-tr.from-orange-600.to-orange-400.text-transparent"
+    )
+  ).toContainText("new franchise!");
 });
 
 test("register a user", async ({ page }) => {
@@ -330,4 +362,23 @@ test("register a user", async ({ page }) => {
   await page.getByRole("button", { name: "Register" }).click();
   await page.getByRole("banner").click();
   await expect(page.getByLabel("Global")).toContainText("Ng");
+});
+
+test("close store", async ({ page }) => {
+  await mockAuthAdminEndpoint(page);
+  await mockGetSingleFranchiseAdminEndpoint(page);
+  await mockDeleteStore(page);
+  await loginAdmin(page);
+  await page.locator("footer").getByRole("link", { name: "Franchise" }).click();
+  await expect(page.getByRole("contentinfo")).toContainText("Franchise");
+  await expect(page.getByRole("heading")).toContainText("new franchise!");
+  await page.getByRole("button", { name: "Close" }).click();
+  await expect(page.getByRole("main")).toContainText("new franchise!");
+  await expect(page.getByRole("main")).toContainText("store");
+  await page.getByRole("button", { name: "Close" }).click();
+  await expect(
+    page.locator(
+      "span.bg-clip-text.bg-gradient-to-tr.from-orange-600.to-orange-400.text-transparent"
+    )
+  ).toContainText("new franchise!");
 });
