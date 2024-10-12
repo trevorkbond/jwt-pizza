@@ -279,20 +279,16 @@ test("admin create a franchise", async ({ page }) => {
   await expect(page.getByRole("heading")).toContainText("Mama Ricci's kitchen");
 });
 
-test.describe("this is so strange", () => {
-  test.describe.configure({ mode: "serial" });
-
-  test("add a store to a franchise", async ({ page }) => {
-    await mockAuthAdminEndpoint(page);
-    await mockGetSingleFranchiseAdminEndpoint(page);
-    await loginAdmin(page);
-    await page.getByRole("link", { name: "Franchise" }).click();
-    await expect(page.getByRole("contentinfo")).toContainText("Franchise");
-    await expect(page.getByRole("heading")).toContainText("new franchise!");
-    await page.getByRole("button", { name: "Create store" }).click();
-    await page.getByPlaceholder("store name").click();
-    await page.getByPlaceholder("store name").fill("Taco Bell");
-    await expect(page.getByRole("heading")).toContainText("Create store");
-    await page.getByRole("button", { name: "Create" }).click();
-  });
+test("add a store to a franchise", async ({ page }) => {
+  await mockAuthAdminEndpoint(page);
+  await mockGetSingleFranchiseAdminEndpoint(page);
+  await loginAdmin(page);
+  await page.locator("footer").getByRole("link", { name: "Franchise" }).click();
+  await expect(page.getByRole("contentinfo")).toContainText("Franchise");
+  await expect(page.getByRole("heading")).toContainText("new franchise!");
+  await page.getByRole("button", { name: "Create store" }).click();
+  await page.getByPlaceholder("store name").click();
+  await page.getByPlaceholder("store name").fill("Taco Bell");
+  await expect(page.getByRole("heading")).toContainText("Create store");
+  await page.getByRole("button", { name: "Create" }).click();
 });
