@@ -172,6 +172,32 @@ const mockAuthEndpoint = async (page) => {
   });
 };
 
+const mockRegister = async (page) => {
+  await page.route("*/**/api/auth", async (route) => {
+    const registerReq = {
+      name: "New guy",
+      email: "new@jwt.com",
+      password: "new",
+    };
+    const registerRes = {
+      user: {
+        id: 4,
+        name: "New guy",
+        email: "new@jwt.com",
+        roles: [{ role: "diner" }],
+      },
+      token: "abcdef",
+    };
+    await page.evaluate((userData) => {
+      localStorage.setItem("user", JSON.stringify(userData));
+      localStorage.setItem("token", userData.token);
+    }, registerRes.user);
+    expect(route.request().method()).toBe("POST");
+    expect(route.request().postDataJSON()).toMatchObject(registerReq);
+    await route.fulfill({ json: registerRes });
+  });
+};
+
 const mockAuthAdminEndpoint = async (page) => {
   await page.route("*/**/api/auth", async (route) => {
     const loginReq = { email: "a@jwt.com", password: "admin" };
@@ -291,4 +317,17 @@ test("add a store to a franchise", async ({ page }) => {
   await page.getByPlaceholder("store name").fill("Taco Bell");
   await expect(page.getByRole("heading")).toContainText("Create store");
   await page.getByRole("button", { name: "Create" }).click();
+});
+
+test("register a user", async ({ page }) => {
+  await mockRegister(page);
+  await page.getByRole("link", { name: "Register" }).click();
+  await page.getByPlaceholder("Full name").fill("New guy");
+  await page.getByPlaceholder("Full name").press("Tab");
+  await page.getByPlaceholder("Email address").fill("new@jwt.com");
+  await page.getByPlaceholder("Email address").press("Tab");
+  await page.getByPlaceholder("Password").fill("new");
+  await page.getByRole("button", { name: "Register" }).click();
+  await page.getByRole("banner").click();
+  await expect(page.getByLabel("Global")).toContainText("Ng");
 });
