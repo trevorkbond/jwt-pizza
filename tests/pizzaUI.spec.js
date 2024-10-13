@@ -333,6 +333,10 @@ test("purchase with login", async ({ page }) => {
 
   // Check balance
   await expect(page.getByText("0.008")).toBeVisible();
+  await page.getByRole("button", { name: "Verify" }).click();
+  await expect(
+    page.getByText("invalid JWT. Looks like you have a bad pizza!")
+  ).toBeVisible();
 });
 
 test("go to about and history", async ({ page }) => {
